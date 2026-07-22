@@ -26,13 +26,8 @@ class UserDB(UserBase,table=True):
 class CreateUser(UserBase):
     password:SecretStr = Field(min_length=15)
 class UserPublic(UserBase):
-    pass
-class UpdateUser:
-    username:str|None = Field(min_length=3,max_length=30,unique=True)
-    password:SecretStr = Field(min_length=15)
-    updated_at:datetime | None =Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            server_default=func.now(),
-            nullable=False
-        ))
+    id: int
+class UpdateUser(SQLModel):
+    username:str|None = Field(min_length=3,max_length=30,default=None)
+    fullname:str | None = Field(max_length=70,default=None)
+    password:SecretStr|None = Field(min_length=15, default=None)
