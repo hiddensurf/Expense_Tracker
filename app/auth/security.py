@@ -7,8 +7,9 @@ from typing import Annotated
 from datetime import timedelta,datetime,timezone
 from app.database.database import SessionDep
 import jwt
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from app.auth.exceptions import credential_exception_security, disabled_user_exception
+from app.auth.models import Roles
 from jwt.exceptions import InvalidTokenError
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 SECRET_KEY=settings.secret_key
@@ -57,4 +58,12 @@ def get_current_user_active(user:Annotated[UserDB,Depends(get_current_user)]):
     if user.disabled:
         raise disabled_user_exception
     return user
+def receive_role(received_role:Roles):
+    def role_checker(user:UserDB=Depends(get_current_user)):
+        if user.user_role != received_role:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return user
+    return role_checker
+admin_role=receive_role(Roles.ADMIN)
+user_role=receive_role(Roles.USER)
 
