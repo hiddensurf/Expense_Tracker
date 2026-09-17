@@ -1,315 +1,95 @@
 # Expense Tracker API
 
-A RESTful Expense Tracker API built with **FastAPI**, **SQLModel**, and **PostgreSQL**. The application provides secure JWT-based authentication, expense management, category management, expense summaries, and bulk CSV import functionality.
+A FastAPI and PostgreSQL backend for recording purchases, organizing them by category, and returning user-scoped expense summaries.
 
-## Features
+## What the code demonstrates
 
-- JWT Authentication
-- User registration and login
-- CRUD operations for expenses
-- CRUD operations for expense categories
-- Role-based authorization (Admin/User)
-- Expense filtering with query parameters
-- Expense summary and analytics
-- Bulk expense upload using CSV
-- Background task support for large CSV uploads
-- SQLModel ORM
-- PostgreSQL database
-- Alembic database migrations
+- OAuth2 password flow with signed JWT access tokens
+- Password hashing and active-user checks
+- Admin/user roles, including admin-only category writes
+- User-scoped purchase CRUD so authenticated users operate on their own records
+- Purchase filters plus per-category and per-month summary queries
+- CSV parsing and import through a FastAPI background task
+- SQLModel persistence and Alembic migrations
 
----
+## API areas
 
-## Tech Stack
+| Area | Examples |
+| --- | --- |
+| Authentication | Register, login, current-user lookup |
+| Users | Read and update the authenticated user |
+| Categories | Read categories; admin-only create, update, and delete |
+| Purchases | Create, list, filter, update, and delete user-owned purchases |
+| Reporting | Purchase summary grouped by category and month |
+| Imports | Parse CSV rows and queue purchase creation in a background task |
 
-- FastAPI
-- SQLModel
-- SQLAlchemy
-- PostgreSQL
-- Alembic
-- Pydantic
-- OAuth2 Password Flow
-- JWT Authentication
+Interactive OpenAPI docs are available at `/docs` while the API is running.
 
----
+## Local setup
 
-## Project Structure
-
-```text
-expense_tracker/
-│
-├── app/
-│   ├── auth/
-│   ├── users/
-│   ├── purchases/
-│   ├── categories/
-│   ├── database/
-│   └── main.py
-│
-├── alembic/
-├── config.py
-├── alembic.ini
-└── .env
-```
-
----
-
-## Installation
-
-### Clone the repository
+### 1. Clone and create an environment
 
 ```bash
-git clone https://github.com/yourusername/expense_tracker.git
-
-cd expense_tracker
+git clone https://github.com/hiddensurf/Expense_Tracker.git
+cd Expense_Tracker
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-### Create virtual environment
+On Windows PowerShell, activate with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### 2. Install the Python packages used by the project
+
+This repository does not currently include a lock file or requirements file. Install the runtime packages before starting it:
 
 ```bash
-python -m venv venv
+pip install fastapi "uvicorn[standard]" sqlmodel "psycopg[binary]" alembic pydantic-settings pyjwt pwdlib python-multipart
 ```
 
-### Activate
+### 3. Configure PostgreSQL
 
-Linux/Mac
-
-```bash
-source venv/bin/activate
-```
-
-Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Environment Variables
-
-Create a `.env` file.
+Create a PostgreSQL database, then add a `.env` file in the repository root:
 
 ```env
-database_user=postgres
-database_password=password
-database_host=localhost
-database_port=5432
-database_db=expense_tracker
-
-secret_key=YOUR_SECRET_KEY
-algorithm=HS256
-time_to_expire=30
+DATABASE_USER=postgres
+DATABASE_PASSWORD=replace_me
+DATABASE_PORT=5432
+DATABASE_DB=expense_tracker
+DATABASE_HOST=localhost
+SECRET_KEY=replace_with_a_long_random_secret
+ALGORITHM=HS256
+TIME_TO_EXPIRE=30
 ```
 
----
+`TIME_TO_EXPIRE` is read as the access-token lifetime in minutes.
 
-## Database Migration
-
-Generate migration
-
-```bash
-alembic revision --autogenerate -m "Initial migration"
-```
-
-Apply migration
+### 4. Run migrations and start the API
 
 ```bash
 alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
----
+Open http://127.0.0.1:8000/docs to try the routes.
 
-## Run the API
+## CSV import
 
-```bash
-fastapi dev app/main.py
+The import route accepts a CSV file. A background task reads rows with `csv.DictReader` and creates purchase records for the authenticated user. Include the purchase fields expected by the database model: `item_name`, `description` (optional), `purchased_at`, `amount`, and `category_id`.
+
+## Project structure
+
+```text
+app/
+├── auth/          # OAuth2/JWT and password helpers
+├── categories/    # category routes and models
+├── database/      # SQLModel engine and sessions
+├── purchases/     # purchase CRUD, queries, summaries, CSV import
+├── users/         # user routes and models
+└── main.py        # FastAPI application and routers
+alembic/            # migration environment and revisions
+config.py           # environment-backed settings
 ```
-
-The API will be available at
-
-```
-http://127.0.0.1:8000
-```
-
-Swagger UI
-
-```
-http://127.0.0.1:8000/docs
-```
-
-ReDoc
-
-```
-http://127.0.0.1:8000/redoc
-```
-
----
-
-# Authentication
-
-## Register
-
-```
-POST /signup
-```
-
-Creates a new user account.
-
----
-
-## Login
-
-```
-POST /token
-```
-
-Returns a JWT access token.
-
-Authorize subsequent requests using
-
-```
-Authorization: Bearer <token>
-```
-
----
-
-# Users
-
-| Method | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/users` | List users |
-| GET | `/users/{id}` | Get user |
-| PATCH | `/users/me` | Update logged-in user |
-| DELETE | `/users/me` | Delete account |
-| GET | `/users/me/purchases` | Get current user's purchases |
-
----
-
-# Categories
-
-| Method | Endpoint |
-|---------|----------|
-| GET | `/categories` |
-| GET | `/categories/{id}` |
-| POST | `/categories` *(Admin)* |
-| PATCH | `/categories/{id}` *(Admin)* |
-| DELETE | `/categories/{id}` *(Admin)* |
-| GET | `/categories/purchases/{id}` *(Admin)* |
-
----
-
-# Purchases
-
-| Method | Endpoint |
-|---------|----------|
-| GET | `/purchases/me` |
-| GET | `/purchases/me/{id}` |
-| POST | `/purchases/me` |
-| PATCH | `/purchases/me/{id}` |
-| DELETE | `/purchases/me/{id}` |
-| GET | `/purchases/summary` |
-
----
-
-## Expense Filtering
-
-The purchases endpoint supports filtering using query parameters.
-
-Examples
-
-```
-GET /purchases/me?category_id=2
-```
-
-```
-GET /purchases/me?min_amount=100&max_amount=500
-```
-
-```
-GET /purchases/me?item_name=Milk
-```
-
-```
-GET /purchases/me?purchased_in_or_after=2026-07-01
-```
-
-Supported filters include:
-
-- Purchase ID
-- Category
-- Item name
-- Minimum amount
-- Maximum amount
-- Purchase date range
-- Entry date range
-
----
-
-# Expense Summary
-
-The summary endpoint aggregates expenses into useful insights.
-
-```
-GET /purchases/summary
-```
-
-Returns information such as:
-
-- Total spending by category
-- Monthly spending
-- Top spending categories
-
----
-
-# Bulk CSV Upload
-
-The application supports importing expenses from CSV files.
-
-CSV upload is processed using FastAPI Background Tasks so the API can return immediately while processing continues in the background.
-
-Example CSV
-
-```csv
-item_name,amount,purchased_at,category_id
-Rice,1200,2026-07-10,1
-Milk,45,2026-07-10,1
-Chair,2500,2026-07-15,2
-```
-
----
-
-## Security
-
-- Passwords are securely hashed before storage.
-- JWT access tokens are used for authentication.
-- Protected endpoints require authentication.
-- Administrative operations require admin privileges.
-
----
-
-## Future Improvements
-
-- Docker support
-- CI/CD pipeline
-- Unit and integration testing
-- Expense budgets
-- Spending alerts
-- Charts and dashboards
-- Export reports to CSV/PDF
-- Email notifications
-
----
-
-## Author
-
-**Aabin Joseph**
-
-B.Tech Computer Science (AI & ML)
-
-Backend & AI Engineering Enthusiast
